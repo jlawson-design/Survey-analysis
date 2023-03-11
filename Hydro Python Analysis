@@ -1,0 +1,98 @@
+#Denotes a comment for further explanation and understanding
+from ast import Delete, Num
+import os
+from datetime import date
+from multiprocessing.sharedctypes import Value
+from pathlib import Path
+from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_interval, get_column_letter, rows_from_range, cols_from_range
+from openpyxl.styles import Font
+import pandas as pd
+from send2trash import send2trash
+#Above is all of the required imports to make the script function. These are libraries of functions that don't come automatically with the Python language.
+
+def main():
+    todays_date = date.today()
+    print('=================================================')
+    print('      Hydorographic Survey Script', todays_date)
+    print('=================================================')# Print's the introductory screen and today's date
+
+    wbr = Workbook()#Creates a new workbook
+    wsr = wbr.active#Selects the active worksheet
+    wsr.title = 'Results'
+    headings = ('Filename', 'SectionID', 'LEFT', 'RIGHT', 'Distance', 'Spacing', 'Channel Width', 'Category')#Setting out the results file headers
+    title = ('Hydrographic Survey Results', todays_date)
+    wsr.append(headings)#Appending the headings to the top of the Excel sheet
+    files=[]
+    Dist = []
+    Sect = []
+    Right = []
+    Left = []
+    filecount = 0
+    i = 0
+    FolderGroup = input ('Please Enter Directory:')
+    print('Searching...')
+    ################################################################
+    for r, d, f in os.walk(FolderGroup):
+        for file in f:
+            if file.endswith(".dat"):
+                if file.__contains__('mh15'):
+                    files.append(os.path.join(r, file))
+                    filename=file.split('.')[0]
+                    read_file = pd.read_table (os.path.join(r, file),delim_whitespace=True, skiprows=2)
+                    read_file.to_excel (filename+'.xlsx')
+                    file_name = filename + '.xlsx'
+    ###############--------CODE DONE BY BENOIT--------############## Code separates out values by delimeters and converts .dat to .xlsx
+                    print(file_name)
+                    filecount = filecount + 1
+                    print(filecount)
+                    wb = load_workbook(file_name)
+                    ws = wb.active
+                    k=0 
+                    for col in range(1, ws.max_column):
+                        for row in range (1, ws.max_row):
+                            if ws[get_column_letter(col)+str(row)].value == 'SECTION':
+                                b = 0
+                                SectionID = ws[get_column_letter(col)+str(row+1)].value#Takes in Section ID Value
+                                Sect.insert(b, SectionID)
+                                b = b+1
+                                j = 0
+                                Distance = ws[get_column_letter(col)+str(row+2)].value
+                                Dist.insert(j, Distance)  #Takes in relevant distance value
+                                j = j+1
+                            if ws[get_column_letter(col)+str(row)].value == '1.000LEFT':
+                                x = 0
+                                left = ws[get_column_letter(col-3)+str(row)].value#Takes in the LEFT value
+                                Left.insert(x, left)
+                                x = x+1
+                            if ws[get_column_letter(col)+str(row)].value == '1.000RIGHT':
+                                y = 0
+                                right = ws[get_column_letter(col-3)+str(row)].value#Takes in the RIGHT value
+                                Right.insert(y, right)
+                                y = y+1
+                                k = k+1
+                    print(Dist[:])
+                    #print(Sect[:])
+                    #print(Left[:])
+                    #print(Right[:])
+                    for a in range (1, k+1):
+                        i = i+2
+                        print(a)
+                        print(Sect[a])
+                        row1 = (file_name, Sect[-a], Left[-a], Right[-a], Dist[-a], '', '=ABS(D'+ str(i) +'-C' + str(i) + ')', '=IF(ISBLANK(G'+ str(i) + '),"",IF(AND(AND(G'+ str(i) + '>=0,G'+ str(i) + '<5),AND(F'+ str(i+1) + '>=0,F'+ str(i+1) + '<100)),"O",IF(AND(AND(G'+ str(i) + '>=5,G'+ str(i) + '<20),AND(F'+ str(i+1) + '>=0,F'+ str(i+1) + '<100)),"P",IF(AND(AND(G'+ str(i) + '>=20,G'+ str(i) + '<100),AND(F'+ str(i+1) + '>=0,F'+ str(i+1) + '<100)),"Q",IF(AND(AND(G'+ str(i) + '>=0,G'+ str(i) + '<5),AND(F'+ str(i+1) + '>=100,F'+ str(i+1) + '<500)),"R",IF(AND(AND(G'+ str(i) + '>=5,G'+ str(i) + '<20),AND(F'+ str(i+1) + '>=100,F'+ str(i+1) + '<500)),"S",IF(AND(AND(G'+ str(i) + '>=20,G'+ str(i) + '<100),AND(F'+ str(i+1) + '>=100,F'+ str(i+1) + '<500)),"T",IF(AND(AND(G'+ str(i) + '>=0,G'+ str(i) + '<5),AND(F'+ str(i+1) + '>=500,F'+ str(i+1) + '<1000)),"U",IF(AND(AND(G'+ str(i) + '>=5,G'+ str(i) + '<20),AND(F'+ str(i+1) + '>=500,F'+ str(i+1) + '<1000)),"V",IF(AND(AND(G'+ str(i) + '>='+ str(i) + '0,G'+ str(i) + '<100),AND(F'+ str(i+1) + '>=500,F'+ str(i+1) + '<1000)),"W","N/A Check!"))))))))))')
+                        row2 = ('','', '', '', '', '=ABS(E' + str(i) + '-E' + str(i+2) + ')', '')#Creates a row to calculate the spacing between two distances
+                        wsr.append(row1)
+                        wsr.append(row2)#Appends rows into Results workbook 
+                    i = i + 1
+                    k = 0 
+                    Sect.clear()
+                    Dist.clear()
+                    Left.clear()
+                    Right.clear()
+                    blankrow = ('', '', '', '','','','','','','','','','','','','','','','','','','','','FILE'+ str(filecount) )
+                    wsr.append(blankrow)
+                    send2trash(file_name)
+    print('Saving...')
+    wbr.save(filename = 'Hydrographic Survey Results.xlsx')
+
+main()
